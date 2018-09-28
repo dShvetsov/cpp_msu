@@ -9,3 +9,5 @@ add_executable(size Size.cpp)
 add_executable(complex ComplexNumber.cpp Complex.hpp)
 
 add_executable(titems TItems.cpp)
+
+add_executable(composer Compose.cpp)

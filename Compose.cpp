@@ -2,29 +2,30 @@
 #include <algorithm>
 #include <vector>
 #include <type_traits>
+#include <iostream>
 
-template <typename Head, typename... Funcs>
+template <typename Head, typename... Func>
 class Applier {
 public:
-    Applier(Head&& head, Func&& func)
-        : funciton(std::forward<Head>(head))
+    Applier(Head&& head, Func&&... func)
+        : function(std::forward<Head>(head))
         , tail(std::forward<Func>(func)...)
     { }
 
     template <typename... Args>
-    auto operator()(Args&& args)
+    auto operator()(Args&&... args)
     {
         return function(
-                tail.apply(std::forward<Args>(args)...)
+                tail.operator()(std::forward<Args>(args)...)
             );
     }
 private:
     Head function;
     Applier<Func...> tail;
-}
+};
 
 template<typename Head>
-class Applier {
+class Applier<Head> {
 public:
 
     Applier(Head&& head)
@@ -32,10 +33,10 @@ public:
     { }
 
     template <typename... Args>
-    auto operator()(Args&& args)
+    auto operator()(Args&&... args)
     {
-        return funciton(
-            std::forward<Args>(args)
+        return function(
+            std::forward<Args>(args)...
         );
     }
 
@@ -44,26 +45,9 @@ private:
 };
 
 template <typename... Func>
-class Compositor {
-public:
-    using result_type = std::result_of_t<
-        Last<Func...>::value
-    >;
-
-    template<typename... Args>
-    result_type operator()(Args&& ... args) {
-        return apply(std::forward<Args>(args)...);
-    }
-};
-
-template <typename... Func>
-auto Compose(func&& func)
+auto Compose(Func&&... func)
 {
-    class Compositor {
-    public:
-        template <typename...
-        auto operator()(
-    };
+    return Applier<Func...>(std::forward<Func>(func)...);
 };
 
 const char* f2(const std::string& str) {
@@ -77,5 +61,8 @@ int main() {
                    s + 3,
                    d.begin(),
                    Compose(f1, f2));
-    //...
+    for (auto& i : d) {
+        std::cout << i << " ";
+    }
+    std::cout << std::endl;
 }
