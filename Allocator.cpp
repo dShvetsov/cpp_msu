@@ -19,6 +19,10 @@ public:
         m_is_free = true;
     }
 
+    static bool own(T* ptr) {
+        return ptr == m_memory;
+    }
+
 private:
     static T m_memory[N];
     static bool m_is_free;
@@ -41,14 +45,13 @@ public:
 
         value_type* pointer = static_alloc::capture(n);
 
-        if (pointer == nullptr) {
+        if (pointer != nullptr) {
+            // static alloc success
+            std::cout << "Allocate memory in a static memory. Size=" << n << std::endl;
+        } else {
              // static alloc failed
             std::cout << "Allocate memory in a heap. Size=" << n << std::endl;
             pointer = new value_type[n];
-        } else {
-            // static alloc success
-            std::cout << "Allocate memory in a static memory. Size=" << n << std::endl;
-            ptr_to_static = pointer;
         }
 
         if (pointer == nullptr) {
@@ -60,10 +63,9 @@ public:
     }
 
     void deallocate(value_type* p, size_t n) noexcept {
-        if (p == ptr_to_static) {
+        if (static_alloc::own(p)) {
             std::cout << "Deallocate a memory in static. Size=" << n << std::endl;
             static_alloc::free();
-            ptr_to_static = nullptr;
         } else {
             std::cout << "Deallocate a memory in heap. Size=" << n << std::endl;
             operator delete[](p);
@@ -75,7 +77,6 @@ public:
 
 private:
     using static_alloc = static_memory<value_type, 20>;
-    value_type* ptr_to_static = nullptr;
 
 };
 } // namespace dsh
