@@ -39,9 +39,29 @@ public:
         }
     }
 
+    TIntrusivePtr(const TIntrusivePtr<T>& other)
+        : TIntrusivePtr(other.m_object)
+    { }
+
+    TIntrusivePtr(TIntrusivePtr<T>&& other)
+    {
+        m_object = other.m_object;
+        other.m_object = nullptr;
+    }
+
+    TIntrusivePtr<T>& operator=(const TIntrusivePtr<T>& other)
+    {
+        Reset(other.m_object);
+        return *this;
+    }
+
     ~TIntrusivePtr() noexcept {
-        if (m_object != nullptr && m_object->Decrement() == 0) {
-            delete m_object;
+        try {
+            Release();
+        } catch (std::logic_error& err) {
+            // There was a decrement counter exception
+            // At least we must try log about it
+            std::cerr << "Hey, there is a logic error" << std::endl;
         }
     }
 
@@ -85,14 +105,17 @@ public:
     { return m_object; }
 
     void Reset(T* object) {
-        if (m_object != nullptr && m_object->Decrement == 0) {
+        if (m_object != nullptr && m_object->Decrement() == 0) {
             delete m_object;
         }
-
         m_object = object;
         if (m_object != nullptr) {
             m_object->Increment();
         }
+    }
+
+    void Release() {
+        Reset(nullptr);
     }
 
 private:
@@ -137,10 +160,17 @@ int main() {
         ASSERT(ip2.UseCount() == 3)
     }
     ASSERT(ip2.UseCount() == 2)
-    TIntrusivePtr<TDoc> null_intrusive(nullptr);
-    ASSERT(!null_intrusive)
-    ASSERT(ip1 != null_intrusive)
+    TIntrusivePtr<TDoc> ip4(nullptr);
+    ASSERT(!ip4)
+    ASSERT(ip1 != ip4)
     ASSERT(ip1->get() == 42);
     ASSERT((*ip2).answer == 42);
+    ip4 = ip1;
+    ASSERT(ip1 == ip4)
+    ip4.Release();
+    ASSERT(!ip4);
+    TIntrusivePtr<TDoc> ip5(std::move(ip1));
+    ASSERT(ip5.Get() == p);
+    ASSERT(ip1.Get() == nullptr);
     return 0;
 }
