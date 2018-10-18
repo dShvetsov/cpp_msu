@@ -30,7 +30,7 @@ T static_memory<T, N>::m_memory[N];
 template <typename T, size_t N>
 bool static_memory<T, N>::m_is_free = true;
 
-template<typename T>
+template<typename T, size_t N=10>
 class allocator {
 public:
     using value_type = T;
@@ -69,6 +69,9 @@ public:
             operator delete[](p);
         }
     }
+
+    template <typename U>
+    struct rebind { using other = allocator<U, N>; };
 
 private:
     using static_alloc = static_memory<value_type, 20>;
