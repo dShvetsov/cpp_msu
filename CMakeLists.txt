@@ -13,3 +13,5 @@ add_executable(titems TItems.cpp)
 add_executable(composer Compose.cpp)
 
 add_executable(alloactor Allocator.cpp)
+
+add_executable(intrusove TIntrusivePtr.cpp)
