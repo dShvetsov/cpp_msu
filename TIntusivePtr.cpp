@@ -24,17 +24,10 @@ public:
     }
 
 private:
-
-
     size_t m_use_counter = 0;
-
-    template <class U>
-    class TIntrusivePtr;
-
-    friend class TIntrusivePtr<T>;
 };
 
-template<typename T> //enable if T is base of TRefCounter<T>
+template<typename T>
 class TIntrusivePtr {
 public:
 
