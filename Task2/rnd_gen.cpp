@@ -30,11 +30,12 @@ protected:
 };
 
 using TRandomNumberGeneratorPtr = std::shared_ptr<TRandomNumberGenerator>;
+using TRandomNumberGeneratorUniquePtr = std::unique_ptr<TRandomNumberGenerator>;
 
 class Factory {
 public:
     template<class... Args>
-    TRandomNumberGeneratorPtr Create(const std::string& type, Args&&... args) {
+    TRandomNumberGeneratorUniquePtr Create(const std::string& type, Args&&... args) {
         std::vector<std::any> params{std::forward<Args>(args)...};
         try {
             return funcs.at(type)(params);
@@ -48,7 +49,7 @@ public:
         return nullptr;
     }
 
-    using GenerateFunc = std::function<TRandomNumberGeneratorPtr(std::vector<std::any>&)>;
+    using GenerateFunc = std::function<TRandomNumberGeneratorUniquePtr(std::vector<std::any>&)>;
 
     void AddDistribution(std::string name, GenerateFunc f) {
         funcs.insert({name, f});
@@ -70,7 +71,14 @@ public:
          CHECK_ARG(lambda > 0);
     }
     double Generate() const override {
-        return -std::log(uniform_rand()) / m_lambda;
+        double L = std::exp(-m_lambda);
+        double p = 1.0;
+        int k = 0;
+        do {
+            k++;
+            p *= uniform_rand();
+        } while (p > L);
+        return k - 1;
     }
 
     double Mean() const override {
@@ -82,7 +90,7 @@ public:
         f->AddDistribution("poison", [](std::vector<std::any>& v) {
             CHECK_ARG(v.size() == 1);
             double lambda = std::any_cast<double>(v[0]);
-            return std::make_shared<PoisonRandomGenerator>(lambda);
+            return std::make_unique<PoisonRandomGenerator>(lambda);
         });
     }
 
@@ -111,7 +119,7 @@ public:
         f->AddDistribution("bernoulli", [](std::vector<std::any>& v) {
             CHECK_ARG(v.size() == 1);
             double p = std::any_cast<double>(v[0]);
-            return std::make_shared<BernoulliRandomGenerator>(p);
+            return std::make_unique<BernoulliRandomGenerator>(p);
         });
     }
 private:
@@ -126,7 +134,8 @@ public:
     }
 
     double Generate() const override {
-        return std::floor( log(1 - m_p, uniform_rand() / m_p) );
+        //return std::floor( log(1 - m_p, uniform_rand() / m_p) );
+        return std::floor( log(1 - m_p, 1 - uniform_rand()) );
     }
 
     double Mean() const override {
@@ -138,7 +147,7 @@ public:
         f->AddDistribution("geometric", [](std::vector<std::any>& v) {
             CHECK_ARG(v.size() == 1);
             double p = std::any_cast<double>(v[0]);
-            return std::make_shared<GeometricRandomGenerator>(p);
+            return std::make_unique<GeometricRandomGenerator>(p);
         });
     }
 
@@ -179,7 +188,7 @@ public:
             CHECK_ARG(v.size() == 2);
             auto values = std::any_cast<std::vector<double>>(v[0]);
             auto probs  = std::any_cast<std::vector<double>>(v[1]);
-            return std::make_shared<FiniteRandomGenerator>(values, probs);
+            return std::make_unique<FiniteRandomGenerator>(values, probs);
         });
     }
 
@@ -197,14 +206,17 @@ double empirical_mean(TRandomNumberGeneratorPtr generator, size_t count=10000000
     return emp_mean;
 }
 
-void compare_empirical_and_theoretical_mean(TRandomNumberGeneratorPtr generator)
+void compare_empirical_and_theoretical_mean(TRandomNumberGeneratorPtr generator, double eps = 0.005)
 {
     double emp_mean = empirical_mean(generator);
     double theor_mean = generator->Mean();
-    std::cout << "  Emperical mean  : " << emp_mean << std::endl
+    double diff = std::abs(emp_mean - theor_mean);
+    terminal::settings color = (diff < eps) ? terminal::settings::green : terminal::settings::red;
+    std::cout << terminal::setup{color}
+              << "  Emperical mean  : " << emp_mean << std::endl
               << "  Theoretical mean: " << theor_mean << std:: endl
-              << "  Difference is   : " << std::abs(emp_mean - theor_mean) << std::endl;
-    
+              << "  Difference is   : " << diff << std::endl
+              << std::endl;
 }
 
 int main() {
@@ -214,22 +226,49 @@ int main() {
     FiniteRandomGenerator::RegisterInFactory();
 
     std::cout << "Test Poison distribution" << std::endl;
-    auto distr = getFactory()->Create("poison", 1.0);
-    compare_empirical_and_theoretical_mean(distr);
+    TRandomNumberGeneratorPtr distr;
+    for (double lambda : {1, 2, 3, 4, 5}) {
+        distr = getFactory()->Create("poison", lambda);
+        compare_empirical_and_theoretical_mean(distr);
+    }
 
     std::cout << "Test Bernoulli distribution" << std::endl;
-    distr = getFactory()->Create("bernoulli", 0.5);
-    compare_empirical_and_theoretical_mean(distr);
+    for (double p : {0.1, 0.2, 0.5, 0.8, 0.99}) {
+        distr = getFactory()->Create("bernoulli", p);
+        compare_empirical_and_theoretical_mean(distr);
+    }
 
     std::cout << "Test Geometric distribution" << std::endl;
-    distr = getFactory()->Create("geometric", 0.5);
-    compare_empirical_and_theoretical_mean(distr);
+    for (double p : {0.1, 0.2, 0.5, 0.8, 0.99}) {
+        distr = getFactory()->Create("geometric", p);
+        compare_empirical_and_theoretical_mean(distr);
+    }
 
     std::cout << "Test Finite distribution" << std::endl;
+    {
     std::vector<double> values{1,2,3,4,5};
     std::vector<double> probs{0.2,0.2,0.2,0.2,0.2};
     distr = getFactory()->Create("finite", values, probs);
     compare_empirical_and_theoretical_mean(distr);
+    }
+    {
+    std::vector<double> values{1,2,3,4,5};
+    std::vector<double> probs{0.1,0.3,0.1,0.3,0.2};
+    distr = getFactory()->Create("finite", values, probs);
+    compare_empirical_and_theoretical_mean(distr);
+    }
+    {
+    std::vector<double> values{1,2,3,4,5};
+    std::vector<double> probs{0.0,0.0,0.0,0.0,1.0};
+    distr = getFactory()->Create("finite", values, probs);
+    compare_empirical_and_theoretical_mean(distr);
+    }
+    {
+    std::vector<double> values{1,2};
+    std::vector<double> probs{0.5,0.5};
+    distr = getFactory()->Create("finite", values, probs);
+    compare_empirical_and_theoretical_mean(distr);
+    }
     return 0;
 }
 
