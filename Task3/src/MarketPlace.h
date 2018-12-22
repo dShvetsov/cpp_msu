@@ -3,6 +3,7 @@
 #include <memory>
 #include <tuple>
 #include <string>
+#include <exception>
 #include <vector>
 
 using IShopPtr = std::shared_ptr<class IShop>;
@@ -23,7 +24,7 @@ public:
     virtual ~IProduct() = default;
 };
 
-class IShop {
+class IShop: public std::enable_shared_from_this<IShop> {
 public:
     using Good = std::pair<std::string, double>;
     using Goods = std::vector<Good>;
@@ -35,6 +36,10 @@ public:
         std::string product_name;
         double old_price;
         double new_price;
+    };
+
+    struct IsClosed: public std::runtime_error {
+        IsClosed() : std::runtime_error("Shop already closed") { }
     };
 
     using News = std::vector<NewsNote>;

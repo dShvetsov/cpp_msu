@@ -102,6 +102,27 @@ TEST(Shop, OnChangePriceTest) {
     EXPECT_THROW(shop->OnChangePrice(product), std::out_of_range);
 }
 
+TEST(Shop, CloseTest) {
+    auto product = std::make_shared<ProductMock>();
+    std::string millennim_falcon("Millennium Falcon");
+    EXPECT_CALL(*product, GetName())
+        .WillRepeatedly(ReturnRef(millennim_falcon));
+    EXPECT_CALL(*product, GetPrice())
+        .WillRepeatedly(Return(42));
+
+    IShopPtr shop = std::make_shared<Shop>("Tatooine");
+    ASSERT_NE(nullptr, shop);
+    shop->DeliverProduct(product);
+
+    EXPECT_CALL(*product, Detach(_))
+        .Times(1);
+    shop->Close();
+    auto goods = shop->SellAll();
+    EXPECT_EQ(0, goods.size()) << "No goods after closing";
+    EXPECT_NO_THROW(shop->DeliverProduct(nullptr));
+    EXPECT_NO_THROW(shop->OnChangePrice(nullptr));
+}
+
 TEST(Product, PriceTest) {
     IProductPtr product = std::make_shared<Product>("Lasersaber",42.0);
     EXPECT_DOUBLE_EQ(42.0, product->GetPrice());

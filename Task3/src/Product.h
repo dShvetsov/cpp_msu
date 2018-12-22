@@ -1,7 +1,10 @@
 #pragma once
 
-#include <MarketPlace.h>
+#include <atomic>
 #include <string>
+#include <mutex>
+
+#include <MarketPlace.h>
 
 class Product: public IProduct {
 public:
@@ -21,7 +24,9 @@ private:
     double m_price;
     std::vector<IShopPtr> m_shops;
     using ShopIterator = std::vector<IShopPtr>::const_iterator;
-    bool m_on_sales = false;
+    std::atomic<bool> m_on_sales{false};
 
     ShopIterator find_shop(IShopPtr) const;
+    mutable std::mutex mutex;
+
 };
