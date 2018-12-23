@@ -19,3 +19,5 @@ add_executable(intrusove TIntrusivePtr.cpp)
 add_subdirectory(Task2)
 
 add_subdirectory(Task3)
+
+add_subdirectory(googletest)
