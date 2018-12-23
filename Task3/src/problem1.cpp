@@ -20,13 +20,14 @@ int main() {
     });
 
     std::thread consumer([&]() {
-        while (!done) {
+        do {
             std::lock_guard<std::mutex> guard(mut);
             while (!items.empty()) {
                 items.pop();
                 count--;
             }
-        }
+            if (done) { break; } // Check while guard is on
+        } while (true);
     });
 
     producer.join();
